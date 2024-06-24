@@ -1,6 +1,8 @@
 
 #include "usb.h"
 #include <libopencm3/usb/cdc.h>
+#include <libopencm3/stm32/rcc.h>
+#include <libopencm3/stm32/gpio.h>
 #include <stddef.h>
 
 
@@ -214,6 +216,25 @@ static void cdcacm_set_config(usbd_device *usbd_dev, uint16_t wValue)
 				cdcacm_control_request);
 
     usb_setup = true;
+}
+
+void preinit_usb()
+{
+    // https://stackoverflow.com/questions/54939948/stm32-usb-cdc-after-hardware-reset
+
+    // Need to pull the D+ pin low for several milliseconds to let the host
+    // know it has to start the enumeration process.
+    // Otherwise the USB will work on first boot, but will fail if the
+    // MCU is reset.
+
+    rcc_periph_clock_enable(RCC_GPIOA);
+	gpio_set_mode(
+        GPIOA,
+        GPIO_MODE_OUTPUT_2_MHZ,
+		GPIO_CNF_OUTPUT_PUSHPULL,
+        GPIO12
+    );
+    gpio_clear(GPIOA, GPIO12);
 }
 
 usbd_device* init_usb()

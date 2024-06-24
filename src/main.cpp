@@ -8,6 +8,7 @@
 #include <libopencm3/cm3/scs.h>
 #include <libopencm3/cm3/tpiu.h>
 #include <libopencm3/cm3/itm.h>
+#include <stdio.h>
 
 #include "usb.h"
 
@@ -47,47 +48,22 @@ static void delay_ms(uint16_t ms) {
 }
 
 static void trace_setup(void) {
-#if 1
     DBGMCU_CR = DBGMCU_CR_TRACE_IOEN | DBGMCU_CR_TRACE_MODE_ASYNC;
 
-    *((volatile uint32_t *)0xE0000FB0) = 0xC5ACCE55;
+    *((volatile uint32_t *)0xE0000FB0) = 0xC5ACCE55; // **ACCESS
+
     SCS_DEMCR |= SCS_DEMCR_TRCENA;
     ITM_TCR = (1 << 16) | ITM_TCR_ITMENA;
     ITM_TER[0] |= (1 << itm_stimulus_port);
     ITM_TPR |= 0x01;
     ITM_STIM8(itm_stimulus_port) = 0x00;
-
-    // ITM_TCR |= ITM_TCR_TSPRESCALE_DIV16;
-#endif
-
-#if 0
-    /* Enable trace subsystem (we'll use ITM and TPIU). */
-    SCS_DEMCR |= SCS_DEMCR_TRCENA;
-
-    /* Use Manchester code for asynchronous transmission. */
-    TPIU_SPPR = TPIU_SPPR_ASYNC_MANCHESTER;
-    TPIU_ACPR = 7;
-
-    /* Formatter and flush control. */
-    TPIU_FFCR &= ~TPIU_FFCR_ENFCONT;
-
-    /* Enable TRACESWO pin for async mode. */
-    DBGMCU_CR = DBGMCU_CR_TRACE_IOEN | DBGMCU_CR_TRACE_MODE_ASYNC;
-
-    /* Unlock access to ITM registers. */
-    /* FIXME: Magic numbers... Is this Cortex-M3 generic? */
-    *((volatile uint32_t *)0xE0000FB0) = 0xC5ACCE55;
-
-    /* Enable ITM with ID = itm_stimulus_port. */
-    ITM_TCR = (1 << 16) | ITM_TCR_ITMENA;
-    /* Enable stimulus port 1. */
-    ITM_TER[0] = (1 << itm_stimulus_port);
-#endif
 }
 
-static void trace_send_blocking(char c) {
-    while (!(ITM_STIM8(itm_stimulus_port) & ITM_STIM_FIFOREADY));
-    ITM_STIM8(itm_stimulus_port) = c;
+static void trace_send_blocking(const char* string, size_t length) {
+    for (size_t i = 0; i < length; i++) {
+        while (!(ITM_STIM8(itm_stimulus_port) & ITM_STIM_FIFOREADY));
+        ITM_STIM8(itm_stimulus_port) = string[i];
+    }
 }
 
 int main() {
@@ -96,29 +72,28 @@ int main() {
     delay_setup();
     trace_setup();
 
-    gpio_set(GPIOA, GPIO5);
+    preinit_usb();
+    delay_ms(3);
+    auto usbd_dev = init_usb();
+    if (usbd_dev) {
+        gpio_set(GPIOA, GPIO5);
+    }
 
-    // auto usbd_dev = init_usb();
-
-    int c = 0;
-    int j = 0;
-
+    int counter = 0;
     while (true) {
         gpio_toggle(GPIOA, GPIO4);
 
-        const char message[] = "hello\r\n";
-        const size_t message_len = strnlen(message, sizeof(message));
-        for (size_t i = 0; i < message_len; i++) {
-            trace_send_blocking(message[i]);
+        if (usbd_dev) {
+            char message[128];
+            size_t message_len = snprintf(message, sizeof(message), "usb: %i\r\n", counter);
+            usbd_ep_write_packet(usbd_dev, 0x82, message, message_len);
         }
 
-        // trace_send_blocking(c + '0');
-        // c = (c == 9) ? 0 : c + 1;	/* Increment c. */
-        // if ((j++ % 10) == 0) {		/* Newline after line full. */
-        //     trace_send_blocking('\r');
-        //     trace_send_blocking('\n');
-        // }
+        char message2[128];
+        size_t message2_len = snprintf(message2, sizeof(message2), "swv: %i\r\n", counter);
+        trace_send_blocking(message2, message2_len);
 
+        counter++;
         delay_ms(1);
     }
 }
