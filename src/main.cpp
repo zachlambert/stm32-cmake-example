@@ -1,5 +1,3 @@
-
-#include <string.h>
 #include <libopencm3/stm32/rcc.h>
 #include <libopencm3/stm32/gpio.h>
 #include <libopencm3/stm32/timer.h>
@@ -8,9 +6,10 @@
 #include <libopencm3/cm3/scs.h>
 #include <libopencm3/cm3/tpiu.h>
 #include <libopencm3/cm3/itm.h>
-#include <stdio.h>
 
 #include "usb.h"
+#include <nanoprintf.h>
+
 
 static const int itm_stimulus_port = 0;
 
@@ -66,6 +65,15 @@ static void trace_send_blocking(const char* string, size_t length) {
     }
 }
 
+void itm_printf(char const *format, ...) {
+    char buffer[64];
+    va_list values;
+    va_start(values, format);
+    int const length = npf_vsnprintf(buffer, sizeof(buffer), format, values);
+    va_end(values);
+    trace_send_blocking(buffer, length);
+}
+
 int main() {
     clock_setup();
     gpio_setup();
@@ -85,13 +93,11 @@ int main() {
 
         if (usbd_dev) {
             char message[128];
-            size_t message_len = snprintf(message, sizeof(message), "usb: %i\r\n", counter);
+            size_t message_len = npf_snprintf(message, sizeof(message), "usb: %i\r\n", counter);
             usbd_ep_write_packet(usbd_dev, 0x82, message, message_len);
         }
 
-        char message2[128];
-        size_t message2_len = snprintf(message2, sizeof(message2), "swv: %i\r\n", counter);
-        trace_send_blocking(message2, message2_len);
+        itm_printf("swv: %i\n", counter);
 
         counter++;
         delay_ms(1);

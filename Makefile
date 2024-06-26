@@ -1,7 +1,7 @@
 .PHONY: build
 build:
 	mkdir -p build
-	cmake -E chdir build cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_EXPORT_COMPILE_COMMANDS=1 -DCMAKE_TOOLCHAIN_FILE=/opt/stm32-collection/toolchain/stm32f103x8.cmake ..
+	cmake -E chdir build cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_EXPORT_COMPILE_COMMANDS=1 -DCMAKE_TOOLCHAIN_FILE=/opt/stm32/toolchain/stm32f103x8.cmake ..
 	cmake --build build
 	sed -i 's/arm-none-eabi-//g' build/compile_commands.json
 
