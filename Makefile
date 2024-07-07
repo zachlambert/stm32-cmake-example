@@ -11,7 +11,7 @@ clean:
 
 .PHONY: flash
 flash:
-	stm32prog -c port=swd -w build/example.elf 0x08000000 -g 0x08000000
+	stm32prog -c port=swd -w build/example-with-datapack.elf 0x08000000 -g 0x08000000
 
 .PHONY: console
 console:
