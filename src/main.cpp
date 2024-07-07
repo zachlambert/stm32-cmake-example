@@ -7,15 +7,9 @@
 #include <libopencm3/cm3/tpiu.h>
 #include <libopencm3/cm3/itm.h>
 
-// #include <cstdint>
-// #include <micro_types/vector.hpp>
-// #include <datapack/datapack.hpp>
-// #include <datapack/common.hpp>
-// #include <datapack/format/binary_writer.hpp>
-
 #include <cstring>
-#include "usb.h"
 #include <nanoprintf.h>
+#include "usb.h"
 
 
 static const int itm_stimulus_port = 0;
@@ -81,38 +75,11 @@ void itm_printf(char const *format, ...) {
     trace_send_blocking(buffer, length);
 }
 
-#if 0
-struct MyData {
-    std::int32_t x;
-    std::int32_t y;
-    std::int32_t z;
-};
-DATAPACK(MyData);
-template <typename Visitor>
-void visit(Visitor& visitor, MyData& value) {
-    visitor.object_begin();
-    visitor.value("x", value.x);
-    visitor.value("y", value.y);
-    visitor.value("z", value.z);
-    visitor.object_end();
-}
-DATAPACK_IMPL(MyData);
-
-mct::static_vector<std::uint8_t, 1024> binary_buffer;
-#endif
-
 int main() {
     clock_setup();
     gpio_setup();
     delay_setup();
     trace_setup();
-
-#if 0
-    MyData data;
-    data.x = 10;
-    data.y = 20;
-    data.z = 30;
-#endif
 
     preinit_usb();
     delay_ms(3);
@@ -125,32 +92,11 @@ int main() {
     while (true) {
         gpio_toggle(GPIOA, GPIO4);
 
-#if 0
         if (usbd_dev) {
-            datapack::BinaryWriter writer(binary_buffer);
-            writer.value(data);
-            usbd_ep_write_packet(usbd_dev, 0x82, binary_buffer.data(), binary_buffer.size());
-            itm_printf("Data size: %i\n", binary_buffer.size());
-            for (std::size_t i = 0; i < binary_buffer.size(); i++) {
-                itm_printf("%02x ", binary_buffer[i]);
-                if ((i + 1) % 8 == 0) {
-                    itm_printf("\n");
-                }
-            }
-            if (binary_buffer.size() % 8 != 0) {
-                itm_printf("\n");
-            }
-        }
-#endif
-
-#if 1
-        if (usbd_dev) {
-            char message[128] = "hello\n";
-            size_t message_len = strnlen(message, sizeof(message));
-            // size_t message_len = npf_snprintf(message, sizeof(message), "usb: %i\n", counter);
+            char message[128];
+            size_t message_len = npf_snprintf(message, sizeof(message), "usb: %i\n", counter);
             usbd_ep_write_packet(usbd_dev, 0x82, message, message_len);
         }
-#endif
 
         itm_printf("swv: %i\n", counter);
 
